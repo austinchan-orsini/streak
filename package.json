@@ -16,7 +16,7 @@
     "typescript": "^5.8.0"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
