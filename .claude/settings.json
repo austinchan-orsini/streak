@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\Austin\\\\Documents\\\\Projects\\\\75 hard\" -Name)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\Austin\\\\Documents\\\\Projects\\\\75 hard\" -Name | Where-Object { $_ -notmatch \"node_modules\" })"
+    ]
+  }
+}

@@ -21,24 +21,3 @@ export const CORE_TASKS: Task[] = [
   { id: 'photo', title: 'Progress photo', sub: 'One per day', kind: 'check' },
 ];
 
-export const SAMPLE_CUSTOM: Task[] = [
-  { id: 'meditate', title: 'Meditate', sub: '10 min', kind: 'timer', target: 10, custom: true, freq: 'daily' },
-  { id: 'stretch', title: 'Stretch', sub: 'Mobility flow', kind: 'check', custom: true, freq: 'weekday' },
-];
-
-export const HEATMAP = (() => {
-  const out: number[] = [];
-  const today = 32;
-  for (let i = 1; i <= 75; i += 1) {
-    if (i < today) {
-      if (i === 14) out.push(3);
-      else if (i === 21 || i === 27) out.push(2);
-      else out.push(1);
-    } else if (i === today) {
-      out.push(2);
-    } else {
-      out.push(0);
-    }
-  }
-  return out;
-})();
