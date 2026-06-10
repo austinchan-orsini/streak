@@ -171,12 +171,11 @@ export function CalendarPage({
               let bg = 'bg-white border border-[rgba(63,51,38,0.07)]';
               let fg = 'text-[#3F3326]';
               if (!inMonth) { bg = 'bg-transparent'; fg = 'text-[#8C7F6D] opacity-30'; }
-              else if (status === 'full') { bg = 'bg-[#3F3326]'; fg = 'text-[#F8F1E4]'; }
+              else if (isStartDay || isEndDay) { bg = 'bg-[#BACEF1]'; fg = 'text-[#3F3326]'; }
+              else if (status === 'full') { bg = 'bg-[#D4C5F9]'; fg = 'text-[#3F3326]'; }
               else if (status === 'failed') { bg = 'bg-[#F4A6A6]'; fg = 'text-[#3F3326]'; }
-              else if (status === 'partial') { bg = 'bg-[#FFCBA8]'; fg = 'text-[#3F3326]'; }
-              else if (isToday) { bg = 'bg-lime'; fg = 'text-[#3F3326]'; }
-              else if (isStartDay) { bg = 'bg-[#BACEF1]'; fg = 'text-[#3F3326]'; }
-              else if (isEndDay) { bg = 'bg-[#D4C5F9]'; fg = 'text-[#3F3326]'; }
+              else if (status === 'partial') { bg = 'bg-lime'; fg = 'text-[#3F3326]'; }
+              else if (isToday) { bg = 'bg-[#FFCBA8]'; fg = 'text-[#3F3326]'; }
 
               return (
                 <button
@@ -212,22 +211,19 @@ export function CalendarPage({
 
           <div className="mt-4 flex flex-wrap gap-4 text-[11px] font-[700] text-[#8C7F6D]">
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[5px] bg-[#3F3326]" />All done
+              <span className="h-3 w-3 rounded-[5px] bg-[#D4C5F9]" />All done
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[5px] bg-[#FFCBA8]" />Partial
+              <span className="h-3 w-3 rounded-[5px] bg-lime" />Partial
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-[5px] bg-[#F4A6A6]" />Core goals missed
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[5px] bg-lime" />Today
+              <span className="h-3 w-3 rounded-[5px] bg-[#FFCBA8]" />Today
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[5px] bg-[#BACEF1]" />Day 1
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[5px] bg-[#D4C5F9]" />Day 75
+              <span className="h-3 w-3 rounded-[5px] bg-[#BACEF1]" />Day 1 / Day 75
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-[5px] border border-[rgba(63,51,38,0.15)] bg-white" />No data
