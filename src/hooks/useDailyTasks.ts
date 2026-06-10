@@ -122,11 +122,13 @@ export function useDailyTasks(
           Object.fromEntries(Object.entries(day).map(([id, s]) => [id, { ...s, photos: undefined }])),
         ])
       );
-      setDoc(doc(db, 'users', userId, 'data', 'main'), {
+      // Firestore rejects `undefined` field values, so strip them before saving
+      const payload = JSON.parse(JSON.stringify({
         customTasks: state.customTasks,
         workoutTags: state.workoutTags,
         history: leanHistory,
-      }).catch(() => {});
+      }));
+      setDoc(doc(db, 'users', userId, 'data', 'main'), payload).catch(() => {});
       // Photos stay in localStorage
       try {
         const photoMap: Record<string, PhotoEntry[]> = {};
