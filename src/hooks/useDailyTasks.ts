@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -69,43 +69,58 @@ export function useDailyTasks(
     workoutTags: initialWorkoutTags,
   });
   const [dataLoading, setDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const tasks = useMemo(() => [...initialTasks, ...state.customTasks], [initialTasks, state.customTasks]);
   const dateKey = useMemo(() => todayKey(selectedDate), [selectedDate]);
 
-  // Load from Firestore on mount
+  // Load from Firestore on mount, retrying on failure so a transient
+  // read error never falls through to "no data" and gets saved over
+  // the user's real data.
   useEffect(() => {
     let cancelled = false;
+    let attempt = 0;
+
     async function load() {
-      setDataLoading(true);
       try {
         const snap = await getDoc(doc(db, 'users', userId, 'data', 'main'));
-        if (!cancelled) {
-          if (snap.exists()) {
-            const data = snap.data();
-            const history: TaskHistory = data.history ?? {};
-            // Rehydrate photos from localStorage
-            try {
-              const raw = window.localStorage.getItem(photosKey);
-              if (raw) {
-                const photoMap = JSON.parse(raw) as Record<string, PhotoEntry[]>;
-                for (const [date, photos] of Object.entries(photoMap)) {
-                  if (history[date]?.['photo']) {
-                    history[date]['photo'] = { ...history[date]['photo'], photos, value: photos.length > 0 };
-                  }
+        if (cancelled) return;
+        if (snap.exists()) {
+          const data = snap.data();
+          const history: TaskHistory = data.history ?? {};
+          // Rehydrate photos from localStorage
+          try {
+            const raw = window.localStorage.getItem(photosKey);
+            if (raw) {
+              const photoMap = JSON.parse(raw) as Record<string, PhotoEntry[]>;
+              for (const [date, photos] of Object.entries(photoMap)) {
+                if (history[date]?.['photo']) {
+                  history[date]['photo'] = { ...history[date]['photo'], photos, value: photos.length > 0 };
                 }
               }
-            } catch { /* ignore */ }
-            setState({
-              customTasks: data.customTasks ?? initialCustomTasks,
-              history,
-              workoutTags: data.workoutTags ?? initialWorkoutTags,
-            });
-          }
+            }
+          } catch { /* ignore */ }
+          setState({
+            customTasks: data.customTasks ?? initialCustomTasks,
+            history,
+            workoutTags: data.workoutTags ?? initialWorkoutTags,
+          });
+        }
+        hasLoadedRef.current = true;
+        setLoadError(false);
+        setDataLoading(false);
+      } catch {
+        if (cancelled) return;
+        attempt += 1;
+        if (attempt <= 5) {
+          setTimeout(load, Math.min(1000 * attempt, 5000));
+        } else {
+          // Give up, but keep saves disabled so we never overwrite
+          // real data with the empty default state.
+          setLoadError(true);
           setDataLoading(false);
         }
-      } catch {
-        if (!cancelled) setDataLoading(false);
       }
     }
     load();
@@ -114,7 +129,7 @@ export function useDailyTasks(
 
   // Save to Firestore on state change (debounced 500ms)
   useEffect(() => {
-    if (dataLoading) return;
+    if (dataLoading || !hasLoadedRef.current) return;
     const timer = setTimeout(() => {
       const leanHistory = Object.fromEntries(
         Object.entries(state.history).map(([date, day]) => [
@@ -362,5 +377,6 @@ export function useDailyTasks(
     getDayProgress,
     setDayProgress,
     dataLoading,
+    loadError,
   };
 }

@@ -59,6 +59,7 @@ function MainApp({
     workoutTags,
     addWorkoutTag,
     dataLoading,
+    loadError,
   } = useDailyTasks(CORE_TASKS, [], todayDate, currentUser.id, DEFAULT_WORKOUT_TAGS);
 
   const handlePhotoUpload = async (taskId: string, files: FileList) => {
@@ -70,6 +71,24 @@ function MainApp({
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#C6E89E] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bg px-6 text-center text-ink">
+        <div className="text-[18px] font-[800]">Couldn't load your data</div>
+        <div className="max-w-sm text-[14px] text-[#8C7F6D]">
+          We couldn't reach the server to load your saved progress. Please check your connection and refresh the page. Nothing has been lost.
+        </div>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="rounded-[18px] bg-lime px-4 py-3 text-[13px] font-[700] text-ink transition hover:opacity-90"
+        >
+          Refresh
+        </button>
       </div>
     );
   }
