@@ -4,15 +4,18 @@ export function LoginPage({
   onLogin,
   onBack,
 }: {
-  onLogin: (username: string, password: string) => string | null;
+  onLogin: (email: string, password: string) => Promise<string | null>;
   onBack: () => void;
 }) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    const err = onLogin(username.trim(), password);
+  const handleSubmit = async () => {
+    setLoading(true);
+    const err = await onLogin(email.trim(), password);
+    setLoading(false);
     if (err) setError(err);
   };
 
@@ -27,15 +30,7 @@ export function LoginPage({
           onClick={onBack}
           className="mb-6 flex items-center gap-2 text-[12px] font-[700] text-[#8C7F6D] transition hover:text-ink"
         >
-          <svg
-            viewBox="0 0 16 16"
-            className="h-3.5 w-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3L5 8l5 5" />
           </svg>
           Back
@@ -47,22 +42,17 @@ export function LoginPage({
 
         <div className="mt-8 flex flex-col gap-3">
           <input
-            value={username}
-            onChange={(e) => {
-              setUsername(e.target.value);
-              setError('');
-            }}
-            placeholder="Username"
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
+            placeholder="Email"
             className={inputClass}
-            autoComplete="username"
+            autoComplete="email"
           />
           <input
             type="password"
             value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError('');
-            }}
+            onChange={(e) => { setPassword(e.target.value); setError(''); }}
             placeholder="Password"
             className={inputClass}
             autoComplete="current-password"
@@ -74,9 +64,10 @@ export function LoginPage({
           <button
             type="button"
             onClick={handleSubmit}
-            className="mt-2 w-full rounded-[22px] bg-ink py-4 text-[14px] font-[800] text-bg transition hover:opacity-90"
+            disabled={loading}
+            className="mt-2 w-full rounded-[22px] bg-ink py-4 text-[14px] font-[800] text-bg transition hover:opacity-90 disabled:opacity-50"
           >
-            Log in
+            {loading ? 'Logging in…' : 'Log in'}
           </button>
         </div>
       </div>

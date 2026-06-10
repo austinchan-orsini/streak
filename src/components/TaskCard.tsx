@@ -356,7 +356,7 @@ export function TaskCard({
   return (
     <motion.div
       ref={ref}
-      className="group relative w-full rounded-[22px] px-4 py-3 text-left shadow-card transition-all"
+      className="group relative w-full rounded-[20px] px-3 py-2 text-left shadow-card transition-all"
       onClick={handleClick}
       whileTap={{ scale: 0.97 }}
       style={{
@@ -371,7 +371,7 @@ export function TaskCard({
 
       <div className="flex items-center gap-3">
         <div
-          className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] transition-colors"
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-[12px] transition-colors"
           style={{ background: done ? 'rgba(213,242,92,0.18)' : accent }}
         >
           {icon({ color: done ? '#C6E89E' : '#3F3326' })}

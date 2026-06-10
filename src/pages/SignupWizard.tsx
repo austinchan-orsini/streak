@@ -1,21 +1,23 @@
 import { useRef, useState } from 'react';
-import type { User } from '../types';
+import type { SignupData } from '../types';
 import { CORE_TASKS } from '../data/tasks';
 
 export function SignupWizard({
   onSignup,
   onBack,
 }: {
-  onSignup: (data: Omit<User, 'id'>) => string | null;
+  onSignup: (data: SignupData) => Promise<string | null>;
   onBack: () => void;
 }) {
   const [step, setStep] = useState(1);
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(undefined);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -30,22 +32,26 @@ export function SignupWizard({
   };
 
   const handleStep1 = () => {
-    if (!username.trim()) { setError('Please enter a username.'); return; }
-    if (username.trim().length < 2) { setError('Username must be at least 2 characters.'); return; }
+    if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!/\S+@\S+\.\S+/.test(email)) { setError('Please enter a valid email.'); return; }
+    if (!username.trim()) { setError('Please enter a display name.'); return; }
     if (!password) { setError('Please enter a password.'); return; }
-    if (password.length < 4) { setError('Password must be at least 4 characters.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
     setError('');
     setStep(2);
   };
 
-  const handleFinish = () => {
-    const err = onSignup({
+  const handleFinish = async () => {
+    setLoading(true);
+    const err = await onSignup({
+      email: email.trim(),
       username: username.trim(),
       password,
       startDate,
       avatarDataUrl,
     });
+    setLoading(false);
     if (err) setError(err);
   };
 
@@ -100,9 +106,17 @@ export function SignupWizard({
             <div className="mt-1 text-[14px] text-[#8C7F6D]">Pick a username and password.</div>
             <div className="mt-8 flex flex-col gap-3">
               <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                placeholder="Email"
+                className={inputClass}
+                autoComplete="email"
+              />
+              <input
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
-                placeholder="Username"
+                placeholder="Display name"
                 className={inputClass}
                 autoComplete="username"
               />
@@ -254,14 +268,16 @@ export function SignupWizard({
               <button
                 type="button"
                 onClick={handleFinish}
-                className="w-full rounded-[22px] bg-ink py-4 text-[14px] font-[800] text-bg transition hover:opacity-90"
+                disabled={loading}
+                className="w-full rounded-[22px] bg-ink py-4 text-[14px] font-[800] text-bg transition hover:opacity-90 disabled:opacity-50"
               >
-                Start my streak
+                {loading ? 'Creating account…' : 'Start my streak'}
               </button>
               <button
                 type="button"
                 onClick={handleFinish}
-                className="text-center text-[12px] font-[700] text-[#8C7F6D] transition hover:text-ink"
+                disabled={loading}
+                className="text-center text-[12px] font-[700] text-[#8C7F6D] transition hover:text-ink disabled:opacity-50"
               >
                 Skip for now
               </button>

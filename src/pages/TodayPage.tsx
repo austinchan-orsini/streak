@@ -20,7 +20,6 @@ export function TodayPage({
   toggleTask,
   setTaskNote,
   setTaskValue,
-  addCustomTask,
   setTaskMeals,
   setTaskPhotos,
   handlePhotoUpload,
@@ -42,7 +41,6 @@ export function TodayPage({
   toggleTask: (taskId: string, el: HTMLElement | null) => void;
   setTaskNote: (taskId: string, note: string) => void;
   setTaskValue: (taskId: string, value: number | boolean) => void;
-  addCustomTask: (task: Omit<Task, 'id' | 'custom'>) => void;
   setTaskMeals: (taskId: string, meals: MealEntry[]) => void;
   setTaskPhotos: (taskId: string, photos: PhotoEntry[]) => void;
   handlePhotoUpload: (taskId: string, files: FileList) => void;
@@ -50,14 +48,6 @@ export function TodayPage({
   setTaskTags: (taskId: string, tags: string[]) => void;
   addWorkoutTag: (tag: Omit<WorkoutTag, 'id'>) => void;
 }) {
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    sub: '',
-    kind: 'check' as Task['kind'],
-    target: 1,
-    unit: '',
-  });
   const [filter, setFilter] = useState<'all' | 'core' | 'custom'>('all');
   const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -91,70 +81,23 @@ export function TodayPage({
   const showCustom = filter === 'all' || filter === 'custom';
   const pct = total > 0 ? doneCount / total : 0;
 
-  const handleAddCustom = () => {
-    if (!newTask.title.trim()) return;
-    addCustomTask({
-      title: newTask.title.trim(),
-      sub: newTask.sub.trim() || 'Custom habit',
-      kind: newTask.kind,
-      target:
-        newTask.kind === 'check'
-          ? undefined
-          : newTask.target > 0
-          ? newTask.target
-          : undefined,
-      unit: newTask.unit.trim() || (newTask.kind === 'counter' ? 'units' : undefined),
-    });
-    setNewTask({ title: '', sub: '', kind: 'check', target: 1, unit: '' });
-    setShowAddForm(false);
-  };
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="soft-card p-5">
-        <div className="flex items-center justify-between gap-3">
-          <Pill className="bg-lime text-ink">YOUR TODAY</Pill>
-          <span className="text-[12px] font-[700] text-[#8C7F6D]">{Math.round(pct * 100)}% complete</span>
-        </div>
-        <div className="mt-3 text-[28px] font-[800] leading-tight tracking-[-0.5px]">
-          {doneCount === total && total > 0 ? 'all done. incredible.' : 'finish strong.'}
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-hair">
-          <div
-            className="h-full rounded-full bg-lime transition-all duration-500"
-            style={{ width: `${pct * 100}%` }}
-          />
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[18px] bg-[#3F3326] px-4 py-3 text-bg">
-            <div className="text-[10px] font-[700] uppercase tracking-[1.4px] text-[#F5EFE4] opacity-70">
-              Total done
-            </div>
-            <div className="mt-1 text-[22px] font-[800]">
-              {doneCount}
-              <span className="text-[14px] opacity-50">/{total}</span>
-            </div>
+    <div className="flex flex-col gap-3">
+      <div className="px-1">
+        <div className="flex items-center gap-3">
+          <div className="text-[22px] font-[800] tracking-[-0.5px]">
+            {doneCount === total && total > 0 ? 'all done. incredible.' : 'daily progress'}
           </div>
-          <div className="rounded-[18px] bg-panel px-4 py-3">
-            <div className="text-[10px] font-[700] uppercase tracking-[1.4px] text-[#8C7F6D]">Core habits</div>
-            <div className="mt-1 text-[22px] font-[800]">
-              {coreDoneCount}
-              <span className="text-[14px] text-[#8C7F6D]">/{coreTotal}</span>
-            </div>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-hair">
+            <div className="h-full rounded-full bg-lime transition-all duration-500" style={{ width: `${pct * 100}%` }} />
           </div>
-          <div className="rounded-[18px] bg-panel px-4 py-3">
-            <div className="text-[10px] font-[700] uppercase tracking-[1.4px] text-[#8C7F6D]">Custom</div>
-            <div className="mt-1 text-[22px] font-[800]">
-              {customDoneCount}
-              <span className="text-[14px] text-[#8C7F6D]">/{customTotal}</span>
-            </div>
-          </div>
+          <span className="text-[12px] font-[700] text-[#8C7F6D]">{doneCount}/{total}</span>
         </div>
       </div>
 
-      <section className="panel-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(63,51,38,0.10)] pb-4">
-          <div className="text-[20px] font-[800] tracking-[-0.4px]">today's checklist</div>
+      <section className="panel-card p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(63,51,38,0.10)] pb-2">
+          <div className="text-[16px] font-[800] tracking-[-0.4px]">today's checklist</div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setFilter('all')}>
               <Pill active={filter === 'all'}>ALL</Pill>
@@ -167,16 +110,16 @@ export function TodayPage({
             </button>
           </div>
         </div>
-        <div className={`mt-4 ${filter === 'all' ? 'grid gap-4 lg:grid-cols-2' : 'space-y-4'}`}>
+        <div className={`mt-3 ${filter === 'all' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
           {showCore && (
             <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-[17px] font-[800]">Core habits</div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="text-[15px] font-[800]">Core tasks</div>
                 <div className="text-[12px] font-[700] text-[#8C7F6D]">{coreDoneCount}/{coreTotal} done</div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {coreTasks.map((task, index) => (
-                  <div key={task.id} className="rounded-[22px] bg-panel p-2">
+                  <div key={task.id} className="rounded-[18px] bg-panel p-1.5">
                     <TaskCard
                       task={task}
                       value={progress[task.id]?.value ?? (task.kind === 'check' ? false : 0)}
@@ -202,13 +145,13 @@ export function TodayPage({
 
           {showCustom && (
             <div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-[17px] font-[800]">Your tasks</div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="text-[15px] font-[800]">Your tasks</div>
                 <div className="text-[12px] font-[700] text-[#8C7F6D]">{customDoneCount}/{customTotal} done</div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {customTasks.map((task, index) => (
-                  <div key={task.id} className="rounded-[22px] bg-panel p-2">
+                  <div key={task.id} className="rounded-[18px] bg-panel p-1.5">
                     <TaskCard
                       task={task}
                       value={progress[task.id]?.value ?? (task.kind === 'check' ? false : 0)}
@@ -232,89 +175,6 @@ export function TodayPage({
             </div>
           )}
 
-          {filter === 'all' && <div className="lg:col-span-2" />}
-          <div className={`rounded-[20px] border border-dashed border-[rgba(63,51,38,0.10)] bg-white p-4 ${filter === 'all' ? 'lg:col-span-2' : ''}`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-[14px] font-[700]">Add custom task</div>
-                <div className="text-[12px] text-[#8C7F6D]">Track an extra goal for today.</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddForm((current) => !current)}
-                className="rounded-[16px] bg-ink px-4 py-2.5 text-[13px] font-[700] text-bg"
-              >
-                {showAddForm ? 'Close' : '+ Add task'}
-              </button>
-            </div>
-
-            {showAddForm && (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <input
-                  value={newTask.title}
-                  onChange={(event) => setNewTask((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="Task title"
-                  className="w-full rounded-[18px] border border-[rgba(63,51,38,0.10)] px-4 py-3 text-[13px] focus:border-ink focus:outline-none"
-                />
-                <input
-                  value={newTask.sub}
-                  onChange={(event) => setNewTask((current) => ({ ...current, sub: event.target.value }))}
-                  placeholder="Short description"
-                  className="w-full rounded-[18px] border border-[rgba(63,51,38,0.10)] px-4 py-3 text-[13px] focus:border-ink focus:outline-none"
-                />
-                <select
-                  value={newTask.kind}
-                  onChange={(event) =>
-                    setNewTask((current) => ({ ...current, kind: event.target.value as Task['kind'] }))
-                  }
-                  className="w-full rounded-[18px] border border-[rgba(63,51,38,0.10)] bg-white px-4 py-3 text-[13px] focus:border-ink focus:outline-none"
-                >
-                  <option value="check">Check (done / not done)</option>
-                  <option value="counter">Counter (tap to count)</option>
-                  <option value="number">Number (enter a value)</option>
-                </select>
-                {(newTask.kind === 'counter' || newTask.kind === 'number') && (
-                  <>
-                    <input
-                      type="number"
-                      min={0}
-                      max={newTask.kind === 'counter' ? 10 : undefined}
-                      step={newTask.kind === 'number' ? 0.5 : 1}
-                      value={newTask.target}
-                      onChange={(event) =>
-                        setNewTask((current) => ({
-                          ...current,
-                          target:
-                            newTask.kind === 'counter'
-                              ? Math.min(10, Number(event.target.value))
-                              : Number(event.target.value),
-                        }))
-                      }
-                      placeholder={
-                        newTask.kind === 'number' ? 'Goal (optional, e.g. 8)' : 'Target (max 10)'
-                      }
-                      className="w-full rounded-[18px] border border-[rgba(63,51,38,0.10)] px-4 py-3 text-[13px] focus:border-ink focus:outline-none"
-                    />
-                    <input
-                      value={newTask.unit}
-                      onChange={(event) =>
-                        setNewTask((current) => ({ ...current, unit: event.target.value }))
-                      }
-                      placeholder={newTask.kind === 'number' ? 'Unit (hrs, lbs, km...)' : 'Unit (pages, cups...)'}
-                      className="w-full rounded-[18px] border border-[rgba(63,51,38,0.10)] px-4 py-3 text-[13px] focus:border-ink focus:outline-none"
-                    />
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={handleAddCustom}
-                  className="w-full rounded-[18px] bg-lime px-4 py-3 text-[13px] font-[700] text-ink md:col-span-2"
-                >
-                  Save task
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </section>
 

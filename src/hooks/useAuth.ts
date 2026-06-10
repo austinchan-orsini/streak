@@ -1,70 +1,78 @@
-import { useState } from 'react';
-import type { User } from '../types';
-
-const ACCOUNTS_KEY = 'streak-accounts';
-const SESSION_KEY = 'streak-session';
-
-function readAccounts(): User[] {
-  try {
-    const raw = localStorage.getItem(ACCOUNTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeAccounts(users: User[]) {
-  try {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(users));
-  } catch {
-    // ignore
-  }
-}
+import { useEffect, useState } from 'react';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import type { SignupData, User } from '../types';
 
 export function useAuth() {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (snap.exists()) {
+            setCurrentUser({ id: firebaseUser.uid, ...(snap.data() as Omit<User, 'id'>) });
+          }
+        } catch {
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  const login = async (email: string, password: string): Promise<string | null> => {
     try {
-      const id = localStorage.getItem(SESSION_KEY);
-      if (!id) return null;
-      return readAccounts().find((u) => u.id === id) ?? null;
-    } catch {
+      await signInWithEmailAndPassword(auth, email, password);
       return null;
+    } catch {
+      return 'Incorrect email or password.';
     }
-  });
-
-  const login = (username: string, password: string): string | null => {
-    const user = readAccounts().find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.password === password,
-    );
-    if (!user) return 'Incorrect username or password.';
-    try { localStorage.setItem(SESSION_KEY, user.id); } catch { /* ignore */ }
-    setCurrentUser(user);
-    return null;
   };
 
-  const signup = (data: Omit<User, 'id'>): string | null => {
-    const all = readAccounts();
-    if (all.some((u) => u.username.toLowerCase() === data.username.toLowerCase())) {
-      return 'That username is already taken.';
+  const signup = async (data: SignupData): Promise<string | null> => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const profile: Omit<User, 'id'> = {
+        username: data.username,
+        email: data.email,
+        startDate: data.startDate,
+        ...(data.avatarDataUrl ? { avatarDataUrl: data.avatarDataUrl } : {}),
+      };
+      await setDoc(doc(db, 'users', cred.user.uid), profile);
+      return null;
+    } catch (err: any) {
+      if (err?.code === 'auth/email-already-in-use') return 'That email is already in use.';
+      if (err?.code === 'auth/invalid-email') return 'Please enter a valid email.';
+      if (err?.code === 'auth/weak-password') return 'Password must be at least 6 characters.';
+      return 'Something went wrong. Please try again.';
     }
-    const user: User = { ...data, id: `user-${Date.now()}` };
-    writeAccounts([...all, user]);
-    try { localStorage.setItem(SESSION_KEY, user.id); } catch { /* ignore */ }
-    setCurrentUser(user);
-    return null;
   };
 
-  const logout = () => {
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-    setCurrentUser(null);
+  const logout = async () => {
+    await signOut(auth);
   };
 
-  const updateCurrentUser = (updates: Partial<Omit<User, 'id'>>) => {
+  const updateCurrentUser = async (updates: Partial<Omit<User, 'id'>>) => {
     if (!currentUser) return;
-    const updated = { ...currentUser, ...updates };
-    writeAccounts(readAccounts().map((u) => (u.id === currentUser.id ? updated : u)));
-    setCurrentUser(updated);
+    try {
+      await updateDoc(doc(db, 'users', currentUser.id), updates);
+      setCurrentUser({ ...currentUser, ...updates });
+    } catch {
+      // ignore
+    }
   };
 
-  return { currentUser, login, signup, logout, updateCurrentUser };
+  return { currentUser, authLoading, login, signup, logout, updateCurrentUser };
 }

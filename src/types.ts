@@ -9,9 +9,17 @@ export interface WorkoutTag {
 export interface User {
   id: string;
   username: string;
-  password: string;
+  email: string;
   avatarDataUrl?: string;
   startDate: string; // YYYY-MM-DD
+}
+
+export interface SignupData {
+  email: string;
+  username: string;
+  password: string;
+  startDate: string;
+  avatarDataUrl?: string;
 }
 
 export interface Task {

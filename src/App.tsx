@@ -26,7 +26,7 @@ function MainApp({
 }: {
   currentUser: User;
   logout: () => void;
-  updateCurrentUser: (updates: Partial<Omit<User, 'id'>>) => void;
+  updateCurrentUser: (updates: Partial<Omit<User, 'id'>>) => Promise<void>;
 }) {
   const [page, setPage] = useState<PageKey>('today');
   const todayDate = useMemo(() => new Date(), []);
@@ -54,11 +54,11 @@ function MainApp({
     setTaskPhotos,
     addTaskPhotos,
     getDayProgress,
+    setDayProgress,
     history,
     workoutTags,
     addWorkoutTag,
-    seedDayComplete,
-    clearDay,
+    dataLoading,
   } = useDailyTasks(CORE_TASKS, [], todayDate, currentUser.id, DEFAULT_WORKOUT_TAGS);
 
   const handlePhotoUpload = async (taskId: string, files: FileList) => {
@@ -66,21 +66,26 @@ function MainApp({
     addTaskPhotos(taskId, newEntries);
   };
 
+  if (dataLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#C6E89E] border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-bg px-5 py-5 text-ink md:px-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
-        <header className="flex flex-col gap-6 rounded-[32px] bg-card p-6 shadow-card md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-[13px] font-[700] uppercase tracking-[1.6px] text-[#8C7F6D]">streak</div>
-            <div className="mt-3 text-[32px] font-[800] tracking-[-1px]">75 Hard -- daily progress</div>
-          </div>
-          <nav className="flex flex-wrap gap-3">
+    <div className="min-h-screen bg-bg px-4 py-3 text-ink md:px-6 lg:px-10">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-3">
+        <header className="flex items-center justify-between rounded-[24px] bg-card px-5 py-2.5 shadow-card">
+          <div className="text-[26px] font-[800] tracking-[-0.6px] text-[#8C7F6D]">streak</div>
+          <nav className="flex gap-2">
             {navItems.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setPage(item.key)}
-                className={`rounded-[24px] px-5 py-3 text-[13px] font-[800] transition ${
+                className={`rounded-[20px] px-4 py-2 text-[13px] font-[800] transition ${
                   page === item.key ? 'bg-ink text-bg shadow-lifted' : 'bg-panel text-ink'
                 }`}
               >
@@ -106,7 +111,6 @@ function MainApp({
             toggleTask={toggleTask}
             setTaskNote={setTaskNote}
             setTaskValue={setTaskValue}
-            addCustomTask={addCustomTask}
             setTaskMeals={setTaskMeals}
             setTaskPhotos={setTaskPhotos}
             handlePhotoUpload={handlePhotoUpload}
@@ -116,7 +120,16 @@ function MainApp({
           />
         )}
         {page === 'calendar' && (
-          <CalendarPage tasks={tasks} history={history} getDayProgress={getDayProgress} />
+          <CalendarPage
+            tasks={tasks}
+            coreTasks={coreTasks}
+            history={history}
+            getDayProgress={getDayProgress}
+            setDayProgress={setDayProgress}
+            workoutTags={workoutTags}
+            addWorkoutTag={addWorkoutTag}
+            startDate={currentUser.startDate}
+          />
         )}
         {page === 'profile' && (
           <ProfilePage
@@ -129,8 +142,6 @@ function MainApp({
             updateCustomTask={updateCustomTask}
             onLogout={logout}
             onUpdateUser={updateCurrentUser}
-            seedDayComplete={seedDayComplete}
-            clearDay={clearDay}
           />
         )}
       </div>
@@ -139,8 +150,16 @@ function MainApp({
 }
 
 function App() {
-  const { currentUser, login, signup, logout, updateCurrentUser } = useAuth();
+  const { currentUser, authLoading, login, signup, logout, updateCurrentUser } = useAuth();
   const [authView, setAuthView] = useState<'landing' | 'login' | 'signup'>('landing');
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#C6E89E] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (

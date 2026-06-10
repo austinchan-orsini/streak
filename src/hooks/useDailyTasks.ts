@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import type { DailyProgress, MealEntry, PhotoEntry, Task, TaskDayState, TaskHistory, WorkoutTag } from '../types';
 
 function burstAt(el: HTMLElement | null) {
@@ -52,89 +54,6 @@ type StoredState = {
   workoutTags: WorkoutTag[];
 };
 
-function loadStoredState(
-  initialCustomTasks: Task[],
-  initialWorkoutTags: WorkoutTag[],
-  storageKey: string,
-  photosKey: string,
-): StoredState {
-  if (typeof window === 'undefined') {
-    return { customTasks: initialCustomTasks, history: {}, workoutTags: initialWorkoutTags };
-  }
-
-  let result: StoredState = {
-    customTasks: initialCustomTasks,
-    history: {},
-    workoutTags: initialWorkoutTags,
-  };
-
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      result = {
-        customTasks: parsed.customTasks ?? initialCustomTasks,
-        history: parsed.history ?? {},
-        workoutTags: parsed.workoutTags ?? initialWorkoutTags,
-      };
-    }
-  } catch {
-    // ignore
-  }
-
-  try {
-    const raw = window.localStorage.getItem(photosKey);
-    if (raw) {
-      const photoMap = JSON.parse(raw) as Record<string, PhotoEntry[]>;
-      for (const [date, photos] of Object.entries(photoMap)) {
-        if (result.history[date]?.['photo']) {
-          result.history[date]['photo'] = {
-            ...result.history[date]['photo'],
-            photos,
-            value: photos.length > 0,
-          };
-        }
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return result;
-}
-
-function saveStoredState(state: StoredState, storageKey: string, photosKey: string) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    const lean: StoredState = {
-      ...state,
-      history: Object.fromEntries(
-        Object.entries(state.history).map(([date, day]) => [
-          date,
-          Object.fromEntries(
-            Object.entries(day).map(([id, s]) => [id, { ...s, photos: undefined }])
-          ),
-        ])
-      ),
-    };
-    window.localStorage.setItem(storageKey, JSON.stringify(lean));
-  } catch {
-    // quota exceeded -- skip
-  }
-
-  try {
-    const photoMap: Record<string, PhotoEntry[]> = {};
-    for (const [date, day] of Object.entries(state.history)) {
-      const photos = day['photo']?.photos;
-      if (photos && photos.length > 0) photoMap[date] = photos;
-    }
-    window.localStorage.setItem(photosKey, JSON.stringify(photoMap));
-  } catch {
-    // photos too large, skip
-  }
-}
-
 export function useDailyTasks(
   initialTasks: Task[],
   initialCustomTasks: Task[] = [],
@@ -142,18 +61,84 @@ export function useDailyTasks(
   userId = 'anonymous',
   initialWorkoutTags: WorkoutTag[] = [],
 ) {
-  const storageKey = `streak-75hard-state-${userId}`;
   const photosKey = `streak-75hard-photos-${userId}`;
 
-  const [state, setState] = useState(() =>
-    loadStoredState(initialCustomTasks, initialWorkoutTags, storageKey, photosKey),
-  );
+  const [state, setState] = useState<StoredState>({
+    customTasks: initialCustomTasks,
+    history: {},
+    workoutTags: initialWorkoutTags,
+  });
+  const [dataLoading, setDataLoading] = useState(true);
+
   const tasks = useMemo(() => [...initialTasks, ...state.customTasks], [initialTasks, state.customTasks]);
   const dateKey = useMemo(() => todayKey(selectedDate), [selectedDate]);
 
+  // Load from Firestore on mount
   useEffect(() => {
-    saveStoredState(state, storageKey, photosKey);
-  }, [state]);
+    let cancelled = false;
+    async function load() {
+      setDataLoading(true);
+      try {
+        const snap = await getDoc(doc(db, 'users', userId, 'data', 'main'));
+        if (!cancelled) {
+          if (snap.exists()) {
+            const data = snap.data();
+            const history: TaskHistory = data.history ?? {};
+            // Rehydrate photos from localStorage
+            try {
+              const raw = window.localStorage.getItem(photosKey);
+              if (raw) {
+                const photoMap = JSON.parse(raw) as Record<string, PhotoEntry[]>;
+                for (const [date, photos] of Object.entries(photoMap)) {
+                  if (history[date]?.['photo']) {
+                    history[date]['photo'] = { ...history[date]['photo'], photos, value: photos.length > 0 };
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+            setState({
+              customTasks: data.customTasks ?? initialCustomTasks,
+              history,
+              workoutTags: data.workoutTags ?? initialWorkoutTags,
+            });
+          }
+          setDataLoading(false);
+        }
+      } catch {
+        if (!cancelled) setDataLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // Save to Firestore on state change (debounced 500ms)
+  useEffect(() => {
+    if (dataLoading) return;
+    const timer = setTimeout(() => {
+      const leanHistory = Object.fromEntries(
+        Object.entries(state.history).map(([date, day]) => [
+          date,
+          Object.fromEntries(Object.entries(day).map(([id, s]) => [id, { ...s, photos: undefined }])),
+        ])
+      );
+      setDoc(doc(db, 'users', userId, 'data', 'main'), {
+        customTasks: state.customTasks,
+        workoutTags: state.workoutTags,
+        history: leanHistory,
+      }).catch(() => {});
+      // Photos stay in localStorage
+      try {
+        const photoMap: Record<string, PhotoEntry[]> = {};
+        for (const [date, day] of Object.entries(state.history)) {
+          const photos = day['photo']?.photos;
+          if (photos && photos.length > 0) photoMap[date] = photos;
+        }
+        window.localStorage.setItem(photosKey, JSON.stringify(photoMap));
+      } catch { /* quota exceeded */ }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [state, dataLoading, userId]);
 
   const getDayProgress = (date: Date) => {
     const existing = state.history[todayKey(date)] || {};
@@ -340,37 +325,9 @@ export function useDailyTasks(
     }));
   };
 
-  const seedDayComplete = (date: Date) => {
-    setState((current) => {
-      const allTasks = [...initialTasks, ...current.customTasks];
-      const key = date.toISOString().slice(0, 10);
-      const dayProgress: DailyProgress = {};
-      for (const task of allTasks) {
-        if (task.kind === 'tags') {
-          const firstTag = current.workoutTags[0];
-          dayProgress[task.id] = {
-            value: true,
-            note: '',
-            selectedTags: firstTag ? [firstTag.id] : [],
-          };
-        } else {
-          dayProgress[task.id] = {
-            value: task.kind === 'check' ? true : (task.target ?? 1),
-            note: '',
-          };
-        }
-      }
-      return { ...current, history: { ...current.history, [key]: dayProgress } };
-    });
-  };
-
-  const clearDay = (date: Date) => {
-    const key = date.toISOString().slice(0, 10);
-    setState((current) => {
-      const newHistory = { ...current.history };
-      delete newHistory[key];
-      return { ...current, history: newHistory };
-    });
+  const setDayProgress = (date: Date, dayProgress: DailyProgress) => {
+    const key = todayKey(date);
+    setState((current) => ({ ...current, history: { ...current.history, [key]: dayProgress } }));
   };
 
   return {
@@ -401,7 +358,7 @@ export function useDailyTasks(
     addWorkoutTag,
     removeWorkoutTag,
     getDayProgress,
-    seedDayComplete,
-    clearDay,
+    setDayProgress,
+    dataLoading,
   };
 }
